@@ -1,0 +1,28 @@
+BUILDING
+
+make
+
+INSTALLING (dunno why you'd want to do this)
+
+cp test_parser /usr/bin
+
+RUNNING
+
+./test_parser test.l  (to run the demo)
+./test_parser (to read code from stdin, CTRL+D CTRL+D to end and
+execute)
+
+DEMO FILES
+
+test.l    - add stuff, define functions, show off map
+
+t3.l      - much cooler map demonstrations... shows off how expressive the
+            language can be
+
+lettest.l - bunch of stuff that doesn't work because of the way
+            variables are scoped in this language
+
+t2.l      - code that doesn't work because lettest.l doesn't work. I'll
+            be adding a primitive to override scope so that functions like 
+            the ones in lettest.l can be defined
+

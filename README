@@ -1,0 +1,36 @@
+Greetings:
+
+This is a very simple lisp interpreter I've been developing over the
+past week or so. So far it does a very good job of parsing input (using
+a flex and bison generated parser) and building the AST. The AST
+evaluator looks to me like it's working quite nicely, but I still feel
+like my tests are lacking and some of the decisions in that code
+(particularly in lithp_eval) seem a little hackish. Macro support is
+working beautifully... I've encountered no troubles so far. A reasonable
+number of primitive functions are included with the interpreter (cons,
+car, cdr, lambda, macro, set, add, mult, quote, cond, equals, seq) and
+this set seems sufficient for building a good deal of the remaining
+language functionality (for, while, if/else, switch). I've built defun,
+defmacro, and map (included with bootstrap.l) as interpreted functions
+and these are enabled by the interpreter before any other code is
+executed. A few other non-standard test functions are included in
+bootstrap.l just for fun and demonstration purposes. test.l and t3.l are
+fairly comprehensive demonstrations of the language features today and
+lettest.l is a scratch pad I'm using to try to implement some more
+language features using only the primitive set I have so far. Note that
+the primitive set is completely devoid of I/O primitives... therefore
+there is no way to really do I/O in this language. Since this is a toy
+language, I don't really care. I'll add them later if I want to for some
+reason.
+
+Enjoy. Expect it to crash.
+
+The code is fairly legible. There are comments where I felt it was
+appropriate, but I generally ignore that type thing and make my
+functions short and my variable names obvious.
+
+If you like it... I'd be interested in hearing that. Email me at
+el.wubo@gmail.com
+
+-Brian
+
