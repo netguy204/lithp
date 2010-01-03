@@ -102,22 +102,29 @@ Atom* lithp_equals(Cons* env, Atom* atom)
 
 Atom* lithp_car(Cons* env, Atom* atom)
 {
-	if(!atom || !ISCONS(atom) || CARATOM(atom) || !ISCONS(CARATOM(atom))) {
+	Atom* arg1 = CARATOM(atom);
+	DEBUG1("lithp_car: arg1=%s", arg1);
+
+	if(!arg1 || !ISCONS(arg1)) {
 		ERROR("CAR: argument error. 1st arg nil or non-cons","");
 		return NIL;
 	}
 
-	return CARATOM(CARATOM(atom));
+	return CARATOM(arg1);
 }
 
 Atom* lithp_cdr(Cons* env, Atom* atom)
 {
-	if(!atom || !ISCONS(atom) || CARATOM(atom) || !ISCONS(CARATOM(atom))) {
+	Atom* arg1 = CARATOM(atom);
+
+	DEBUG1("lithp_cdr: arg1=%s", arg1);
+
+	if(!arg1 || !ISCONS(arg1)) {
 		ERROR("CDR: argument error. 1st arg nil or non-cons","");
 		return NIL;
 	}
 
-	return CDRATOM(CARATOM(atom));
+	return CDRATOM(arg1);
 }
 
 Atom* lithp_cons(Cons* env, Atom* atom)

@@ -19,7 +19,7 @@
 #define CONS_H
 
 /* disable debug output */
-/*#define NO_PRINT_DEBUG*/
+#define NO_PRINT_DEBUG
 
 #include <stdio.h>
 #include <stdlib.h>
