@@ -10,7 +10,7 @@
 (defun dec (x) (+ x -1))
 
 (defun map (l m)
-   (cond (cdr(m))
+   (cond (cdr m)
       (cons (l (car m)) (map l (cdr m)))
       (cons (l (car m)) ())))
 

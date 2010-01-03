@@ -39,29 +39,28 @@ int main(int argc, char* argv[])
    Atom* program = PARSE_FILE(bootstrap);
    fclose(bootstrap);
 
-   lithp_seq(global_env, program);
-   PRINT_CONS(global_env); printf("\n");
+   // wrap the bootstrap program in seq
+   program = NEW_CONS_ATOM2(NEW_SYMBOL_ATOM("seq"), program);
+
+   DEBUG1("bootstrap program: %s", program);
+
+   Atom* bs_result = lithp2_eval(global_env, program);
+   DEBUG1("bootstrap result: %s", bs_result);
 
    // run the user's file
    program = PARSE_FILE(infile);
-   PRINT_ATOM(program); printf("\n");
- 
-   if(ATOMTYPE(program) != CONS_ATOM) {
+   if(!ISCONS(program)) {
       ERROR("parser did not return a cons--dunno what to do",0);
       return 0;
    }
      
+   DEBUG1("user program: %s", program);
+ 
    Cons* program_cons = program->value.cons;
 
    do {
-      if(ATOMTYPE(program) != CONS_ATOM) {
-         ERROR("parser did not return a cons--dunno what to do",0);
-         return 0;
-      }
-      
-      PRINT_ATOM(CAR(program_cons)); printf("\n");
-      PRINT_ATOM(lithp_eval_atom(global_env, CAR(program_cons))); printf("\n");
-      printf("\n");
+      PRINTF1("Evaluating: %s", CAR(program_cons));
+      PRINTF1("Result: %s", lithp2_apply(global_env, CAR(program_cons)));
    } while (CDR(program_cons) && (program_cons = CDRCONS(program_cons)));
    
    fclose(infile);

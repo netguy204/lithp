@@ -34,6 +34,8 @@ Atom* lithp_quote(Cons* env, Atom* atom);
 Atom* lithp_add(Cons* env, Atom* atom);
 Atom* lithp_mult(Cons* env, Atom* atom);
 Atom* lithp_seq(Cons* env, Atom* atom);
+Atom* lithp_print(Cons* env, Atom* atom);
+
 void intializePrimitives(Cons* env);
 
 #endif

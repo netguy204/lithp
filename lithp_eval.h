@@ -23,8 +23,10 @@
 Atom* lithp2_eval(Cons* env, Atom* list);
 Atom* lithp2_apply(Cons* env, Atom* list);
 Atom* lithp2_apply_lambda(Cons* env, Atom* list);
+/*
 Atom* lithp_eval_list(Cons* env, Atom* list);
 Atom* lithp_eval_atom(Cons* env, Atom* atom);
+*/
 Atom* lithp_expand_macro(Cons* env, Atom* list);
 Atom* lithp_weak_eval_atom(Cons* env, Atom* atom);
 Atom* lithp_weak_eval_list(Cons* env, Atom* list);

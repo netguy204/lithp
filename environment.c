@@ -59,9 +59,9 @@ Atom* lookupVariable(Cons* env, char* name)
    return 0;
 }
 
-void REGISTER_PRIMITIVE(Cons* env, char* name, LITHP_FUNCTION function)
+void REGISTER_PRIMITIVE(Cons* env, char* name, LITHP_FUNCTION function, int special)
 {
-   newVariable(env, name, NEW_PRIMITIVE_ATOM(function));
+   newVariable(env, name, NEW_PRIMITIVE_ATOM(function, special));
 }
 
 

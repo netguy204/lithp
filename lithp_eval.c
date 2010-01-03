@@ -18,42 +18,52 @@
 #include "lithp_eval.h"
 #include "cons.h"
 #include "environment.h"
+#include <assert.h>
 
 int isSpecialFunction(Atom* atom) {
-	return 0;
+	assert(atom);
+	return ISSPECIALPRIM(atom) || ISSPECIALLAMBDA(atom) || ISMACRO(atom);
 }
 
-Atom* lithp2_eval(Cons* env, Atom* list)
+Atom* lithp2_apply(Cons* env, Atom* list)
 {
+	DEBUG1("lithp2_apply: %s", list);
+
 	// sanity check
-	if(!list || ATOMTYPE(list) != CONS_ATOM) {
-		ERROR("atom is not a list atom", "");
+	if(!list || !ISCONS(list)) {
+		ERROR1("cannot apply a non cons: %s", list);
 		return NIL;
 	}
 
-	// what we do depends on what the head is
 	Atom* head = CARATOM(list);
 	
-	// since we want to support evaluatable expressions
-	// as the heads of lists, we need to see if the head
-	// is a cons. If so, we evaluate that and make our decision
-	// based on it's result
-	if(ATOMTYPE(head) == CONS_ATOM) {
-		head = lithp2_eval(env, head);
-	} else if(ATOMTYPE(head) == SYMBOL_ATOM) {
-		head = lookupVariable(env, ASSYMBOL(head));
+	// since we want to support evaluatable expressions at the head
+	// eg. ((lambda x (+ 1 x)) 1) --> 2
+	head = lithp2_eval(env, head);
+
+	// make sure we got something executable
+	if(!EXECUTABLE_ATOM(head)) {
+		ERROR1("cannot apply. car is not executable: %s", head);
+		return NIL;
 	}
 
-	Atom* new_list = list;
+	Atom* new_list = NEW_CONS_ATOM2(head, CDRATOM(list));
 
-	// now the classic test to see if this is special or not
+	// if the function isn't special
+	// eval each argument, build a new list for apply
 	if(!isSpecialFunction(head)) {
-		// eval each argument, build a new list for apply
-		new_list = NEW_CONS_ATOM2(head, 0);
 		Atom* last_filled_cons = new_list;
-		Atom* arg = CDRATOM(list);
+		Atom* arg = CDRATOM(new_list);
+
 		while(arg) {
-			Atom* new_arg = lithp2_eval(env, arg);
+			// if this is a dotted list we want to still evaluate
+			// the thing after the dot
+			Atom* safe_arg = arg;
+			if(ISCONS(safe_arg)) {
+				safe_arg = CARATOM(safe_arg);
+			}
+
+			Atom* new_arg = lithp2_eval(env, safe_arg);
 
 			// add the newly eval'd arg to the new list for apply
 			Atom* new_cons = NEW_CONS_ATOM2(new_arg, 0);
@@ -65,12 +75,76 @@ Atom* lithp2_eval(Cons* env, Atom* list)
 		}
 	}
 
+	DEBUG1("after prep for apply: %s", new_list);
+
 	// apply!
-	lithp2_apply(env, list);
+	Atom* result = NIL;
+	switch(ATOMTYPE(head)) {
+		case SPECIAL_PRIMITIVE_ATOM:
+		case PRIMITIVE_ATOM:
+			// note: primitives don't expect themselves to
+			// be in the list so we just past cdr
+			result = ASPRIM(head)(env, CDRATOM(new_list));
+			break;
+		case SPECIAL_LAMBDA_ATOM:
+		case LAMBDA_ATOM:
+			result = lithp2_apply_lambda(env, new_list);
+			break;
+		case MACRO_ATOM:
+		{
+			Atom* new_code = lithp_expand_macro(env, new_list);
+			// new code must be eval'able
+			result = lithp2_eval(env, new_code);
+			break;
+		}
+		default:
+			ERROR1("apply: can't apply unknown type: %s", head);
+			break;
+	}
+
+	DEBUG1("apply----> %s", result);
+	return result;
 }
 
-Atom* lithp2_apply(Cons* env, Atom* list)
+Atom* lithp2_eval(Cons* env, Atom* atom)
 {
+	DEBUG1("lithp2_eval: %s", atom);
+
+	Atom* result = NIL;
+
+	if(atom) {
+		switch(ATOMTYPE(atom)) {
+			// numbers self evaluate
+			case NUMBER_ATOM:
+				result = atom;
+				break;
+
+			// cons must be applied
+			case CONS_ATOM:
+				result = lithp2_apply(env, atom);
+				break;
+
+			// symbols get looked up
+			case SYMBOL_ATOM:
+				result = lookupVariable(env, ASSYMBOL(atom));
+				break;
+
+			// these all self evaluate as well
+			case SPECIAL_LAMBDA_ATOM:
+			case LAMBDA_ATOM:
+			case SPECIAL_PRIMITIVE_ATOM:
+			case PRIMITIVE_ATOM:
+			case MACRO_ATOM:
+				result = atom;
+				break;
+			default:
+				ERROR1("unrecognized type for eval: %s", atom);
+				return NIL;
+		}
+	}
+
+	DEBUG1("eval----> %s", result);
+	return result;
 }
 
 Atom* lithp2_apply_lambda(Cons* env, Atom* list)
@@ -104,10 +178,11 @@ Atom* lithp2_apply_lambda(Cons* env, Atom* list)
 		next_val = CDRATOM(next_val);
 	}
 
-	Atom* result = lithp_eval_atom(lambda_env, lambda_body);
+	Atom* result = lithp2_eval(lambda_env, lambda_body);
 	return result;
 }
 
+/*
 Atom* lithp_eval_list(Cons* env, Atom* list)
 {
 	// is this really a list?
@@ -120,8 +195,8 @@ Atom* lithp_eval_list(Cons* env, Atom* list)
 	list = NEW_CONS_ATOM(CONS(CARATOM(list),CDRATOM(list)));
 
 	// FIXME: first lookup symbol, then expand macro, then evaluate list
-	if(ATOMTYPE(CARATOM(list)) == SYMBOL_ATOM || ATOMTYPE(CARATOM(list)) == MACRO_ATOM) {
-		if(ATOMTYPE(CARATOM(list)) == SYMBOL_ATOM) {
+	if(ISSYMBOL(CARATOM(list)) || ISMACRO(CARATOM(list))) {
+		if(ISSYMBOL(CARATOM(list))) {
 			Atom* symbol_a = lookupVariable(env, CARATOM(list)->value.symbol);
 
 			if(symbol_a && ATOMTYPE(symbol_a) == MACRO_ATOM) {
@@ -129,29 +204,20 @@ Atom* lithp_eval_list(Cons* env, Atom* list)
 			}
 		}
 
-		if(ATOMTYPE(CARATOM(list)) == MACRO_ATOM) {
+		if(ISMACRO(CARATOM(list))) {
 			Atom* macro = lithp_expand_macro(env, list);
 			return lithp_eval_atom(env, macro);
 		}
 	}
 
 	// what's at the head of the list?
-	if(ATOMTYPE(CARATOM(list)) == CONS_ATOM) {
-		// execute the list at the head of the list
-		//printf("evaluating: "); PRINT_ATOM(CARATOM(list)); printf("\n");
+	if(ISCONS(CARATOM(list))) {
 		CARATOM(list) = lithp_eval_list(env, CARATOM(list));
-		//printf("done evaluating\n");
 
-		return CARATOM(list); // i think i always want to return newly evaluated lists
+ 		// i think i always want to return newly evaluated lists
+		return CARATOM(list);
 
-		/*
-		   if(!EXECUTABLE_ATOM(CARATOM(list))) {
-		//ERROR("the list at the head of the list did not return a special "\
-		//      "function. returning list", 0);
-		return CARATOM(list); // dunno if this is proper behavior
-		}
-		*/
-	} else if(ATOMTYPE(CARATOM(list)) == SYMBOL_ATOM) {
+	} else if(ISSYMBOL(CARATOM(list))) {
 		// look up the symbol at the head and substitute the result
 		char* symbol = CARATOM(list)->value.symbol;
 		CARATOM(list) = lookupVariable(env, symbol);
@@ -161,16 +227,16 @@ Atom* lithp_eval_list(Cons* env, Atom* list)
 		}
 	}
 
+	// at this point the head should be executable
 	if(!EXECUTABLE_ATOM(CARATOM(list))) {
 		ERROR("something really goofed. we shouldn't be here.",0);
-		//PRINT_ATOM(list); printf("\n");
-		return NIL; // FIXME: debatable
+		return NIL;
 	}
 
 	// now we've decoded the head of the list--dispatch the call appropriately
-	if(ATOMTYPE(CARATOM(list)) == PRIMITIVE_ATOM) {
-		return CARATOM(list)->value.function(env, CDRATOM(list));
-	} else if(ATOMTYPE(CARATOM(list)) == LAMBDA_ATOM) {
+	if(ISPRIM(CARATOM(list))) {
+		return ASPRIM(CARATOM(list))(env, CDRATOM(list));
+	} else if(ISLAMBDA(CARATOM(list))) {
 		Atom* result = lithp2_apply_lambda(env, list);
 	} else {
 		ERROR("programming error. give a coder a hug.", 0);
@@ -182,18 +248,23 @@ Atom* lithp_eval_atom(Cons* env, Atom* atom)
 {
 	if(!atom) {
 		return NIL;
-	} else if(ATOMTYPE(atom) == NUMBER_ATOM) {
+	} else if(ISNUMBER(atom)) {
 		return atom; // numbers are self evaluating
-	} else if(ATOMTYPE(atom) == SYMBOL_ATOM) {
-		return lookupVariable(env, atom->value.symbol); // symbols get looked up
-	} else if(ATOMTYPE(atom) == CONS_ATOM) {
+	} else if(ISSYMBOL(atom)) {
+		// symbols get looked up
+		return lookupVariable(env, atom->value.symbol);
+	} else if(ISCONS(atom)) {
 		return lithp_eval_list(env, atom); // lists get evaluated
 	} else {
 		ERROR("can't do anything with this atom, returning it",0);
+		ERROR("the atom was: ",0);
+		PRINT_ATOM(atom);
+		printf("\n");
+		ERROR("end lithp_eval_atom fail",0);
 		return atom;
 	}
 }
-
+*/
 
 Atom* lithp_expand_macro(Cons* env, Atom* list)
 {
@@ -262,3 +333,4 @@ Atom* lithp_weak_eval_list(Cons* env, Atom* list)
 
 	return NEW_CONS_ATOM(new_list_head);
 }
+
